@@ -50,28 +50,41 @@ public class DatabaseService {
     public void fillData() {
         deleteAllData();
 
-        List<TransformRule> transformRules = fillTransformRule(200);
-        List<StartState> startStates = fillStartState(200);
-        List<Grid> grids = fillGrid(200);
+        List<TransformRule> transformRules = fillTransformRule(30);
+        List<StartState> startStates = fillStartState(40);
+        List<Grid> grids = fillGrid(20);
 
-        List<CellAutomaton> cellAutomatons = fillCellAutomaton(200, transformRules, startStates, grids);
+        List<CellAutomaton> cellAutomatons = fillCellAutomaton(transformRules, startStates, grids);
 
-        List<Science> sciences = fillScience(200);
-        fillSca(200, sciences, cellAutomatons);
+        List<Science> sciences = fillScience(10);
+        List<SCA> scas = fillSca(sciences, cellAutomatons);
+
+        List<Step> steps = fillStep(cellAutomatons);
+
+        List<FinalState> finalStates = fillFinalState(30);
+        List<IntermediateState> intermediateStates = fillIntermediateState(startStates, finalStates);
+
+        List<Structure> structures = fillStructure(startStates, intermediateStates, finalStates);
+
+        List<Partition> partitions = fillPartition(grids);
+        List<Cell> cells = fillCell(partitions, startStates, intermediateStates, finalStates);
+
+        System.out.println(
+                    transformRules.size() +
+                    startStates.size() +
+                    grids.size() +
+                    cellAutomatons.size() +
+                    sciences.size() +
+                    scas.size() +
+                    steps.size() +
+                    finalStates.size() +
+                    intermediateStates.size() +
+                    structures.size() +
+                    partitions.size() +
+                    cells.size()
+                );
 
     }
-
-//    private void fillTransformRule(int count, String className) throws ClassNotFoundException {
-//        Class c = Class.forName(className);
-//        PodamFactory factory = new PodamFactoryImpl();
-//        List<Object> transformRules = new ArrayList<>(count);
-//
-//        for (int i = 0; i < count; i++)
-//            transformRules.add(factory.manufacturePojo(c));
-//
-//        transformRuleRepository.saveAll(transformRules);
-//        return;
-//    }
 
     private List<TransformRule> fillTransformRule(int count) {
         PodamFactory factory = new PodamFactoryImpl();
@@ -85,41 +98,61 @@ public class DatabaseService {
         return transformRules;
     }
 
-    private List<Cell> fillCell(int count) {
+    private List<Cell> fillCell(List<Partition> partitions,
+                                List<StartState> startStates,
+                                List<IntermediateState> intermediateStates,
+                                List<FinalState> finalStates) {
         PodamFactory factory = new PodamFactoryImpl();
-        List<Cell> cells = new ArrayList<>(count);
+        List<Cell> cells = new ArrayList<>();
 
-        for (int i = 0; i < count; i++)
-            cells.add(factory.manufacturePojo(Cell.class));
+        int[] lengths = {partitions.size(), startStates.size(), intermediateStates.size(), finalStates.size()};
+        int count = Arrays.stream(lengths).max().getAsInt();
+        NormalDistribution normalDistribution = new NormalDistribution(1, 0.3);
+
+        for (int i = 0; i < count; i++) {
+            double xCoord = (double) i/((double) count/2);
+            long childCount = Math.round(normalDistribution.density(xCoord) * 100);
+            for (int j = 0; j < childCount; j++) {
+                Cell current = factory.manufacturePojo(Cell.class);
+
+                current.setIntermediateState(intermediateStates.get(i));
+                current.setStartState(startStates.get(i * startStates.size() / count));
+                current.setFinalState(finalStates.get(i * finalStates.size() / count));
+                current.setPartition(partitions.get(i * partitions.size() / count));
+
+                cells.add(current);
+            }
+        }
 
         cellRepository.saveAll(cells);
-
         return cells;
     }
 
-    private List<CellAutomaton> fillCellAutomaton(int count,
-                                                  List<TransformRule> transformRules,
+    private List<CellAutomaton> fillCellAutomaton(List<TransformRule> transformRules,
                                                   List<StartState> startStates,
                                                   List<Grid> grids) {
         PodamFactory factory = new PodamFactoryImpl();
         List<CellAutomaton> cellAutomatons = new ArrayList<>();
 
+        int[] lengths = {startStates.size(), transformRules.size(), grids.size()};
+        int count = Arrays.stream(lengths).max().getAsInt();
         NormalDistribution normalDistribution = new NormalDistribution(1, 0.3);
 
         for (int i = 0; i < count; i++) {
-            double xCoord = (double) i/100; //count / 2
+            double xCoord = (double) i/((double) count/2);
             long childCount = Math.round(normalDistribution.density(xCoord) * 100);
             for (int j = 0; j < childCount; j++) {
                 CellAutomaton current = factory.manufacturePojo(CellAutomaton.class);
+
                 current.setStartState(startStates.get(i));
-                current.setTransformRule(transformRules.get(i));
-                current.setGrid(grids.get(i));
+                current.setTransformRule(transformRules.get(i * transformRules.size() / count));
+                current.setGrid(grids.get(i * grids.size() / count));
+
                 cellAutomatons.add(current);
             }
         }
 
         cellAutomatonRepository.saveAll(cellAutomatons);
-
         return cellAutomatons;
     }
 
@@ -147,36 +180,60 @@ public class DatabaseService {
         return grids;
     }
 
-    private List<IntermediateState> fillIntermediateState(int count) {
+    private List<IntermediateState> fillIntermediateState(List<StartState> startStates, List<FinalState> finalStates) {
         PodamFactory factory = new PodamFactoryImpl();
-        List<IntermediateState> intermediateStates = new ArrayList<>(count);
+        List<IntermediateState> intermediateStates = new ArrayList<>();
 
-        for (int i = 0; i < count; i++)
-            intermediateStates.add(factory.manufacturePojo(IntermediateState.class));
+        int[] lengths = {startStates.size(), finalStates.size()};
+        int count = Arrays.stream(lengths).max().getAsInt();
+        NormalDistribution normalDistribution = new NormalDistribution(1, 0.3);
+
+        for (int i = 0; i < count; i++) {
+            double xCoord = (double) i/((double) count/2);
+            long childCount = Math.round(normalDistribution.density(xCoord) * 100);
+            for (int j = 0; j < childCount; j++) {
+                IntermediateState current = factory.manufacturePojo(IntermediateState.class);
+
+                current.setStartState(startStates.get(i));
+                current.setFinalState(finalStates.get(i * finalStates.size() / count));
+
+                intermediateStates.add(current);
+            }
+        }
 
         intermediateStateRepository.saveAll(intermediateStates);
-
         return intermediateStates;
     }
 
-    private List<Partition> fillPartition(int count) {
+    private List<Partition> fillPartition(List<Grid> grids) {
         PodamFactory factory = new PodamFactoryImpl();
-        List<Partition> partitions = new ArrayList<>(count);
+        List<Partition> partitions = new ArrayList<>();
 
-        for (int i = 0; i < count; i++)
-            partitions.add(factory.manufacturePojo(Partition.class));
+        int count = grids.size();
+        NormalDistribution normalDistribution = new NormalDistribution(1, 0.3);
+
+        for (int i = 0; i < count; i++) {
+            double xCoord = (double) i/((double) count/2);
+            long childCount = Math.round(normalDistribution.density(xCoord) * 100);
+            for (int j = 0; j < childCount; j++) {
+                Partition current = factory.manufacturePojo(Partition.class);
+
+                current.setGrid(grids.get(i));
+
+                partitions.add(current);
+            }
+        }
 
         partitionRepository.saveAll(partitions);
-
         return partitions;
     }
 
-    private List<SCA> fillSca(int count, List<Science> sciences, List<CellAutomaton> cellAutomatons) {
+    private List<SCA> fillSca(List<Science> sciences, List<CellAutomaton> cellAutomatons) {
         PodamFactory factory = new PodamFactoryImpl();
-        List<SCA> scas = new ArrayList<>(count);
-        int[] lengths = {sciences.size(), cellAutomatons.size()};
-        count = Arrays.stream(lengths).max().getAsInt();
+        List<SCA> scas = new ArrayList<>();
 
+        int[] lengths = {sciences.size(), cellAutomatons.size()};
+        int count = Arrays.stream(lengths).max().getAsInt();
         NormalDistribution normalDistribution = new NormalDistribution(1, 0.3);
 
         for (int i = 0; i < count; i++) {
@@ -221,27 +278,56 @@ public class DatabaseService {
         return startStates;
     }
 
-    private List<Step> fillStep(int count) {
+    private List<Step> fillStep(List<CellAutomaton> cellAutomatons) {
         PodamFactory factory = new PodamFactoryImpl();
-        List<Step> steps = new ArrayList<>(count);
+        List<Step> steps = new ArrayList<>();
 
-        for (int i = 0; i < count; i++)
-            steps.add(factory.manufacturePojo(Step.class));
+        int count = cellAutomatons.size();
+
+        NormalDistribution normalDistribution = new NormalDistribution(1, 0.3);
+
+        for (int i = 0; i < count; i++) {
+            double xCoord = (double) i/((double) count/2);
+            long childCount = Math.round(normalDistribution.density(xCoord) * 100);
+            for (int j = 0; j < childCount; j++) {
+                Step current = factory.manufacturePojo(Step.class);
+
+                current.setCellAutomaton(cellAutomatons.get(i));
+
+                steps.add(current);
+            }
+        }
 
         stepRepository.saveAll(steps);
 
         return steps;
     }
 
-    private List<Structure> fillStructure(int count) {
+    private List<Structure> fillStructure(List<StartState> startStates,
+                                          List<IntermediateState> intermediateStates,
+                                          List<FinalState> finalStates) {
         PodamFactory factory = new PodamFactoryImpl();
-        List<Structure> structures = new ArrayList<>(count);
+        List<Structure> structures = new ArrayList<>();
 
-        for (int i = 0; i < count; i++)
-            structures.add(factory.manufacturePojo(Structure.class));
+        int[] lengths = {startStates.size(), intermediateStates.size(), finalStates.size()};
+        int count = Arrays.stream(lengths).max().getAsInt();
+        NormalDistribution normalDistribution = new NormalDistribution(1, 0.3);
+
+        for (int i = 0; i < count; i++) {
+            double xCoord = (double) i/((double) count/2);
+            long childCount = Math.round(normalDistribution.density(xCoord) * 100);
+            for (int j = 0; j < childCount; j++) {
+                Structure current = factory.manufacturePojo(Structure.class);
+
+                current.setIntermediateState(intermediateStates.get(i));
+                current.setStartState(startStates.get(i * startStates.size() / count));
+                current.setFinalState(finalStates.get(i * finalStates.size() / count));
+
+                structures.add(current);
+            }
+        }
 
         structureRepository.saveAll(structures);
-
         return structures;
     }
     
